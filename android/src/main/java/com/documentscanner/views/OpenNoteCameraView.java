@@ -362,18 +362,45 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
         }
 
         PackageManager pm = mActivity.getPackageManager();
-
-        if (pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_AUTOFOCUS)) {
-            param.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-        } else {
-            mFocused = true;
-        }
-        if (pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH)) {
+        
+        if (pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH))
+        {
             param.setFlashMode(enableTorch ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
         }
-        param.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
 
-        mCamera.setParameters(param);
+        //if (pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_AUTOFOCUS)) {
+        try {
+          List<String> focusModes= param.getSupportedFocusModes();
+          //for (String focusMode : focusModes) {
+          //  Log.d(TAG, "found focus mode: " + focusMode);
+          //}
+          if (focusModes.size() > 0) {
+            if (focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
+              //Log.d(TAG, "setting focus mode: FOCUS_MODE_CONTINUOUS_PICTURE");
+              param.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+            } else if (focusModes.contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
+              //Log.d(TAG, "setting focus mode: FOCUS_MODE_AUTO");
+              param.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+            } else {
+              //Log.d(TAG, "setting focus mode: " + focusModes.get(0));
+              param.setFocusMode(focusModes.get(0));
+            }
+          } else {
+            //Log.d(TAG, "setting focus mode: NONE");
+            mFocused = true;
+          }
+        } catch (Exception e) {
+          //Log.d(TAG, "EXCEPTION - setting focus mode: NONE");
+          mFocused = true;
+          e.printStackTrace();
+        }
+        //}
+
+        try {
+          mCamera.setParameters(param);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
 
         if (mBugRotate) {
             mCamera.setDisplayOrientation(270);
@@ -543,9 +570,12 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
         if (safeToTakePicture) {
 
             safeToTakePicture = false;
+            boolean hitException = false;
 
             try {
-                if (pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_AUTOFOCUS)) {
+                String focusMode = mCamera.getParameters().getFocusMode();
+                //Log.d(TAG, "request picture focus mode: " + focusMode);
+                if (focusMode == Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE || focusMode == Camera.Parameters.FOCUS_MODE_AUTO) {
                     mCamera.autoFocus(new Camera.AutoFocusCallback() {
                         @Override
                         public void onAutoFocus(boolean success, Camera camera) {
@@ -561,12 +591,24 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
                     takePicture();
                 }
             } catch (Exception e) {
-                onPictureFailed();
+                //onPictureFailed();
+                hitException = true;
+            }
+
+            if (hitException) {
+              //Log.d(TAG, "hit exception!");
+
+              try {
+                takePicture();
+              } catch (Exception e) {
+                  onPictureFailed();
+              }
             }
         }
     }
 
     private void takePicture() {
+        //Log.d(TAG, "taking picture");
         mCamera.takePicture(null, null, pCallback);
         blinkScreen();
         blinkScreenAndShutterSound();
@@ -663,10 +705,14 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
     }
 
     private void onPictureFailed() {
-        mCamera.cancelAutoFocus();
+        Log.d(TAG, "picture failed!");
+        try {
+            mCamera.cancelAutoFocus();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         safeToTakePicture = true;
         waitSpinnerInvisible();
-
     }
 
     public int parsedOverlayColor() {
