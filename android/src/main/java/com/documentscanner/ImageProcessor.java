@@ -42,6 +42,7 @@ public class ImageProcessor extends Handler {
     private static final String TAG = "ImageProcessor";
     private final OpenNoteCameraView mMainActivity;
     private boolean mBugRotate;
+    private int mCameraRotation = 0; // keep track of the camera rotation in degrees
     private double colorGain = 1; // contrast
     private double colorBias = 10; // bright
     private Size mPreviewSize;
@@ -129,6 +130,10 @@ public class ImageProcessor extends Handler {
             Core.flip(img, img, 0);
         }
 
+        // BEGINCHANGE - Rotate the image afterwards so the result is pointing up
+        rotateImageToMatchCamera(img);
+        // ENDCHANGE
+
         ScannedDocument doc = detectDocument(img);
 
         mMainActivity.getHUD().clear();
@@ -185,7 +190,32 @@ public class ImageProcessor extends Handler {
 
     }
 
+    private void rotateImageToMatchCamera(Mat mat)
+    {
+        if (mCameraRotation == 0)
+        {
+        }
+        else if (mCameraRotation == 90)
+        {
+            Core.transpose(mat, mat);
+            Core.flip(mat, mat, 0);
+        }
+        else if (mCameraRotation == 180)
+        {
+            Core.flip(mat, mat, -1);
+        }
+        else if (mCameraRotation == 270)
+        {
+            Core.transpose(mat, mat);
+            Core.flip(mat, mat, 1);
+        }
+    }
+
     private boolean detectPreviewDocument(Mat inputRgba) {
+
+        // BEGINCHANGE - Rotate the image before preview so our preview grid lines up
+        rotateImageToMatchCamera(inputRgba);
+        // ENDCHANGE
 
         ArrayList<MatOfPoint> contours = findContours(inputRgba);
 
@@ -437,5 +467,10 @@ public class ImageProcessor extends Handler {
     public void setBugRotate(boolean bugRotate) {
         mBugRotate = bugRotate;
     }
+
+    public void setCameraRotation(int rotation) {
+        mCameraRotation = rotation;
+    }
+
 
 }

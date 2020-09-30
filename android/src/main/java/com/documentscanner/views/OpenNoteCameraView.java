@@ -82,6 +82,8 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
 
     private static OpenNoteCameraView mThis;
 
+    protected int mCameraId = 0;
+
     private OnScannerListener listener = null;
     private OnProcessingListener processingListener = null;
 
@@ -317,8 +319,8 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         try {
-            int cameraId = findBestCamera();
-            mCamera = Camera.open(cameraId);
+            mCameraId = findBestCamera();
+            mCamera = Camera.open(mCameraId);
         } catch (RuntimeException e) {
             System.err.println(e);
             return;
@@ -452,6 +454,33 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
 
         try {
             mCamera.setPreviewDisplay(mSurfaceHolder);
+
+            // BEGINCHANGE: Orient the camera based on the device rotation
+            {
+                android.hardware.Camera.CameraInfo info = new android.hardware.Camera.CameraInfo();
+                android.hardware.Camera.getCameraInfo(mCameraId, info);
+                int rotation = mActivity.getWindowManager().getDefaultDisplay().getRotation();
+                int degrees = rotation * 90;
+                //switch (rotation) {
+                //    case Surface.ROTATION_0: degrees = 0; break;
+                //    case Surface.ROTATION_90: degrees = 90; break;
+                //    case Surface.ROTATION_180: degrees = 180; break;
+                //    case Surface.ROTATION_270: degrees = 270; break;
+                //}
+
+                int result;
+                if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                    result = (info.orientation + degrees) % 360;
+                    result = (360 - result) % 360;  // compensate the mirror
+                } else {  // back-facing
+                    result = (info.orientation - degrees + 360) % 360;
+                }
+                Log.d(TAG, "Orienting camera to " + degrees + " degrees");
+                mCamera.setDisplayOrientation(result);
+                mImageProcessor.setCameraRotation(degrees);
+            }
+            // ENDCHANGE
+
             mThis.setEnableTorch(torchEnabled);
             mCamera.startPreview();
             mCamera.setPreviewCallback(this);
