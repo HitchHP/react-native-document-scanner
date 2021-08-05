@@ -144,12 +144,19 @@ public class OpenNoteCameraView extends JavaCameraView implements PictureCallbac
     }
 
     public void setEnableTorch(boolean enableTorch) {
-        this.enableTorch = enableTorch;
+        try
+        {
+            this.enableTorch = enableTorch;
 
-        if (mCamera != null) {
-            Camera.Parameters p = mCamera.getParameters();
-            p.setFlashMode(enableTorch ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
-            mCamera.setParameters(p);
+            if (mCamera != null) {
+                Camera.Parameters p = mCamera.getParameters();
+                p.setFlashMode(enableTorch ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
+                mCamera.setParameters(p);
+            }
+        }
+        catch (Exception e) {
+            Log.d(TAG, "EXCEPTION while setting torch to: " + (enableTorch ? "on" : "off"));
+            //e.printStackTrace();
         }
     }
 
